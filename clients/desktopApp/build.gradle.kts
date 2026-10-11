@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.serialization.json)
     implementation(libs.coroutines.swing)
+    implementation(libs.jnativehook)
 }
 
 compose.desktop {

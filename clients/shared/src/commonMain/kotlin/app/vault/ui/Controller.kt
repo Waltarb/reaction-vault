@@ -17,6 +17,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private const val QUICK_LIMIT = 8
+
 enum class Screen { Vault, Discover }
 
 enum class Quick(val label: String, val filter: ItemFilter) {
@@ -67,6 +69,34 @@ class Controller(
     val saving = mutableStateListOf<String>()
 
     private var searchJob: Job? = null
+    private var quickJob: Job? = null
+
+    /** The desktop quick-search popup keeps its own query so the main window's list is not disturbed. */
+    var quickResults by mutableStateOf<List<Item>>(emptyList())
+
+    fun quickSearch(query: String) {
+        quickJob?.cancel()
+        val local = if (query.isBlank()) library.filtered(ItemFilter()) else library.searchLocal(query, ItemFilter())
+        quickResults = local.take(QUICK_LIMIT)
+        if (query.isBlank()) return
+        quickJob = scope.launch {
+            delay(200)
+            runCatching { api.search(query, ItemFilter(), limit = QUICK_LIMIT).items }
+                .onSuccess { quickResults = it.take(QUICK_LIMIT) }
+        }
+    }
+
+    /** Sends an item in its most compatible format: the original, or MP4 for clips that are not already one. */
+    fun quickSend(item: Item, onDone: (String) -> Unit) {
+        val formats = item.sendFormats()
+        val format = formats.first()
+        scope.launch {
+            runCatching {
+                val bytes = api.download(format.path)
+                platform.sendMedia(bytes, item.mime, (item.title.ifBlank { "reaction" }) + "." + item.formatLabel.lowercase())
+            }.onSuccess(onDone).onFailure { onDone(it.message ?: "Could not prepare the file") }
+        }
+    }
 
     val filter: ItemFilter get() = quick.filter.copy(collection = collectionId)
 

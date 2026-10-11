@@ -81,7 +81,12 @@ import io.ktor.client.engine.HttpClientEngine
 import kotlinx.coroutines.launch
 
 @androidx.compose.runtime.Composable
-fun VaultApp(platform: Platform, engine: () -> HttpClientEngine) {
+fun VaultApp(
+    platform: Platform,
+    engine: () -> HttpClientEngine,
+    quickSearch: QuickSearchHandle? = null,
+    quickWindow: QuickWindow? = null,
+) {
     VaultTheme {
         Surface(Modifier.fillMaxSize(), color = Palette.Bg) {
             var connection by remember { mutableStateOf(platform.loadConnection()) }
@@ -93,7 +98,7 @@ fun VaultApp(platform: Platform, engine: () -> HttpClientEngine) {
                 }
             } else {
                 androidx.compose.runtime.key(c) {
-                    MainScreen(platform, c, engine) {
+                    MainScreen(platform, c, engine, quickSearch, quickWindow) {
                         platform.saveConnection(null)
                         connection = null
                     }
@@ -145,7 +150,10 @@ private fun LoginScreen(engine: () -> HttpClientEngine, onConnected: (Connection
 }
 
 @Composable
-private fun MainScreen(platform: Platform, connection: Connection, engine: () -> HttpClientEngine, onSignOut: () -> Unit) {
+private fun MainScreen(
+    platform: Platform, connection: Connection, engine: () -> HttpClientEngine,
+    quickSearch: QuickSearchHandle?, quickWindow: QuickWindow?, onSignOut: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val api = remember(connection) { VaultApi(connection.serverUrl, connection.token, engine()) }
     val library = remember(api) { Library(api, platform.libraryStorage) }
@@ -192,6 +200,9 @@ private fun MainScreen(platform: Platform, connection: Connection, engine: () ->
             }
         }
         controller.pending?.let { SaveDialog(controller, it, loader) }
+        if (quickSearch != null && quickWindow != null && quickSearch.visible) {
+            quickWindow { QuickSearchPanel(controller, loader) { quickSearch.hide() } }
+        }
     }
 }
 
