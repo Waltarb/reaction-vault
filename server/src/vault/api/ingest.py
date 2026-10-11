@@ -16,6 +16,7 @@ from vault import library
 from vault.api.deps import get_db
 from vault.config import Settings, get_settings
 from vault.db.util import tx
+from vault.jobs.queue import enqueue
 from vault.media import fetch, thumbs
 from vault.media.probe import UnsupportedMedia, hamming, probe
 from vault.media.store import derived_path, put_blob
@@ -174,6 +175,10 @@ def commit_staged(db, settings: Settings, stage_id: str, body: CommitBody) -> di
                 (item_id, kind, path.stat().st_size, w, h),
             )
         db.execute("DELETE FROM staged WHERE id = ?", (stage_id,))
+        if meta["kind"] != "image":
+            enqueue(db, "renditions", item_id)
+        if vec is None:
+            enqueue(db, "embed", item_id)  # no model yet: the worker fills it in later
     return {"item": library.get_item(db, item_id), "duplicate": None}
 
 

@@ -13,6 +13,7 @@ def make_client(tmp_path, monkeypatch):
         monkeypatch.setenv("VAULT_DATA_DIR", str(tmp_path))
         monkeypatch.setenv("VAULT_AUTH_DISABLED", "true" if auth_disabled else "false")
         monkeypatch.setenv("VAULT_EMBED_MODEL", "none")  # never download real weights in tests
+        monkeypatch.setenv("VAULT_WORKER_ENABLED", "false")  # tests run jobs explicitly
         get_settings.cache_clear()
         from vault.main import create_app
 

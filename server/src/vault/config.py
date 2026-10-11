@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     near_dup_cosine: float = 0.94
     near_dup_phash: int = 6
     auth_disabled: bool = False
+    worker_enabled: bool = True
 
     @property
     def db_path(self) -> Path:

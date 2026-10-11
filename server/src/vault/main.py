@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 from vault import __version__
 from vault.api import ingest, items, media, search
+from vault.jobs import tasks
+from vault.jobs.queue import Worker
 from vault.ml import registry
 from vault.api.deps import COOKIE, get_db, hash_token, require_auth
 from vault.config import get_settings
@@ -21,7 +23,15 @@ async def lifespan(app: FastAPI):
     migrate(db)
     db.close()
     registry.warm(settings)
-    yield
+    worker = None
+    if settings.worker_enabled:
+        worker = Worker(lambda: connect(settings.db_path), tasks.HANDLERS, on_idle=tasks.backfill_embeddings)
+        worker.start()
+    try:
+        yield
+    finally:
+        if worker:
+            worker.stop()
 
 
 class SessionBody(BaseModel):

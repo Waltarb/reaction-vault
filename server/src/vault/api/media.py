@@ -5,6 +5,8 @@ from fastapi.responses import FileResponse
 
 from vault.api.deps import get_db
 from vault.config import Settings, get_settings
+from vault.jobs.tasks import ensure_rendition, sendable
+from vault.media import convert
 from vault.media.store import blob_path, derived_path
 
 router = APIRouter(prefix="/media", tags=["media"])
@@ -47,3 +49,22 @@ def preview(item_id: int, db: sqlite3.Connection = Depends(get_db),
             settings: Settings = Depends(get_settings)):
     row = _item(db, item_id)
     return _file(derived_path(settings, row["sha256"], "preview.webp"), "image/webp", row["sha256"])
+
+
+@router.get("/{item_id}/send/{fmt}")
+def send(item_id: int, fmt: str, db: sqlite3.Connection = Depends(get_db),
+         settings: Settings = Depends(get_settings)):
+    """Animated items as MP4 or GIF for apps that only take one of them. Built once, then cached."""
+    if fmt not in ("mp4", "gif"):
+        raise HTTPException(404, "unknown format")
+    row = db.execute("SELECT * FROM items WHERE id = ? AND deleted_at IS NULL", (item_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, "item not found")
+    if not sendable(row):
+        raise HTTPException(404, "only animated items have send formats")
+    try:
+        path = ensure_rendition(db, settings, row, fmt)
+    except convert.ConvertError as e:
+        raise HTTPException(503, f"conversion unavailable: {e}") from e
+    media_type = "video/mp4" if fmt == "mp4" else "image/gif"
+    return _file(path, media_type, row["sha256"] + fmt)
