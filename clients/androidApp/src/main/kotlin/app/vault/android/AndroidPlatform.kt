@@ -19,9 +19,15 @@ import java.io.File
 class AndroidPlatform(
     private val activity: Context,
     override val incoming: Flow<PickedFile>,
+    override val incomingUrls: Flow<String>,
     private val launchPicker: (CompletableDeferred<List<Uri>>) -> Unit,
 ) : Platform {
     override val name: String = "Android"
+
+    init {
+        // Files handed to the share sheet are only needed until the other app has read them.
+        runCatching { File(activity.cacheDir, "shared").listFiles()?.forEach { it.delete() } }
+    }
 
     private val prefs = activity.getSharedPreferences("vault", Context.MODE_PRIVATE)
 

@@ -164,6 +164,7 @@ private fun MainScreen(
     }
     LaunchedEffect(controller) { controller.start() }
     LaunchedEffect(controller) { platform.incoming.collect { controller.stage(it) } }
+    LaunchedEffect(controller) { platform.incomingUrls.collect { controller.stageUrl(it) } }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 900.dp

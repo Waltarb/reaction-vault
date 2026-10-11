@@ -32,6 +32,9 @@ interface Platform {
 
     /** Files handed to the app from outside, such as the Android share sheet. */
     val incoming: Flow<PickedFile> get() = emptyFlow()
+
+    /** Links handed to the app from outside, such as a URL shared from a browser. */
+    val incomingUrls: Flow<String> get() = emptyFlow()
 }
 
 data class Connection(val serverUrl: String, val token: String)
