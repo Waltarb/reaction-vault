@@ -1,0 +1,21 @@
+from vault.plugins.base import DiscoverySource
+from vault.plugins.seventv.plugin import SevenTV
+
+_sources: dict[str, DiscoverySource] | None = None
+
+
+def sources() -> dict[str, DiscoverySource]:
+    global _sources
+    if _sources is None:
+        _sources = {s.key: s for s in (SevenTV(),)}
+    return _sources
+
+
+def register(source: DiscoverySource) -> None:
+    """Add or replace a source at runtime (used by tests and for custom sources)."""
+    sources()[source.key] = source
+
+
+def reset() -> None:
+    global _sources
+    _sources = None

@@ -91,7 +91,8 @@ def near_matches(db: sqlite3.Connection, settings: Settings, meta: dict, exclude
     return out
 
 
-def _stage(db, settings, path: Path, sha: str, *, name: str, source: str, source_url: str | None):
+def stage_file(db, settings, path: Path, sha: str, *, name: str, source: str, source_url: str | None,
+               source_id: str | None = None):
     """Probe a downloaded file and register it as staged. Returns (staged_id, meta) or (None, existing)."""
     try:
         info = probe(path)
@@ -109,6 +110,7 @@ def _stage(db, settings, path: Path, sha: str, *, name: str, source: str, source
         "sha256": sha,
         "bytes": path.stat().st_size,
         "source": source,
+        "source_id": source_id,
         "source_url": source_url,
         "suggested_title": _clean_title(name),
     }
@@ -129,7 +131,8 @@ def _stage(db, settings, path: Path, sha: str, *, name: str, source: str, source
     return stage_id, meta
 
 
-def commit_staged(db, settings: Settings, stage_id: str, body: CommitBody) -> dict:
+def commit_staged(db, settings: Settings, stage_id: str, body: CommitBody,
+                  source_tags: list[str] | None = None) -> dict:
     row = db.execute("SELECT * FROM staged WHERE id = ?", (stage_id,)).fetchone()
     if row is None:
         raise HTTPException(404, "staged upload not found or expired")
@@ -163,8 +166,8 @@ def commit_staged(db, settings: Settings, stage_id: str, body: CommitBody) -> di
     with tx(db):
         item_id = library.create_item(
             db, meta, sha256=sha, size=meta["bytes"], title=title,
-            tags=[t for t in final_tags if t not in auto], collection_ids=body.collection_ids,
-            auto_tags=auto,
+            tags=[t for t in final_tags if t not in auto and t not in (source_tags or [])],
+            collection_ids=body.collection_ids, auto_tags=auto, source_tags=source_tags,
         )
         if vec is not None:
             index.upsert(db, index.ensure_table(db, meta["model"], len(vec)), item_id, vec)
@@ -229,7 +232,7 @@ def ingest(
         path.unlink(missing_ok=True)
         raise HTTPException(400, "empty file")
 
-    stage_id, meta = _stage(db, settings, path, sha, name=name, source=source, source_url=source_url)
+    stage_id, meta = stage_file(db, settings, path, sha, name=name, source=source, source_url=source_url)
     if stage_id is None:
         return {"staged_id": None, "duplicate": "exact", "item": meta, "near": [], "auto_tags": []}
 

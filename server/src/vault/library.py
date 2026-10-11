@@ -154,7 +154,7 @@ def set_collections(db, item_id: int, ids) -> None:
 
 
 def create_item(db, meta: dict, *, sha256: str, size: int, title: str, tags, collection_ids,
-                auto_tags: dict[str, float] | None = None) -> int:
+                auto_tags: dict[str, float] | None = None, source_tags=None) -> int:
     """Insert (or resurrect a deleted) item. Must run inside tx()."""
     rev = bump_rev(db)
     existing = find_by_sha(db, sha256)
@@ -184,6 +184,8 @@ def create_item(db, meta: dict, *, sha256: str, size: int, title: str, tags, col
         )
         item_id = cur.lastrowid
     add_tags(db, item_id, tags, "manual")
+    if source_tags:
+        add_tags(db, item_id, source_tags, "source")
     if auto_tags:
         add_tags(db, item_id, list(auto_tags), "auto", auto_tags)
     set_collections(db, item_id, collection_ids)

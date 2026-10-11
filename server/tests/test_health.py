@@ -1,7 +1,7 @@
 def test_health_reports_schema_and_empty_vault(client):
     body = client.get("/api/health").json()
     assert body["status"] == "ok"
-    assert body["schema"] == 1
+    assert body["schema"] == 2
     assert body["items"] == 0
 
 

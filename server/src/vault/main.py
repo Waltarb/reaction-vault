@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 from vault import __version__
-from vault.api import ingest, items, media, search
+from vault.api import discover, ingest, items, media, search, sync
 from vault.jobs import tasks
 from vault.jobs.queue import Worker
 from vault.ml import registry
@@ -62,6 +62,8 @@ def create_app() -> FastAPI:
     protected.include_router(ingest.router)
     protected.include_router(items.router)
     protected.include_router(search.router)
+    protected.include_router(sync.router)
+    protected.include_router(discover.router)
     protected.include_router(media.router)
     app.include_router(protected)
 
