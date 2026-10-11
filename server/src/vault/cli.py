@@ -75,7 +75,7 @@ def reembed(all_items: bool) -> int:
         with tx(db):
             index.upsert(db, table, item_id, vec)
         done += 1
-        print(f"embedded {done}/{len(ids)}", end="", flush=True)
+        print(f"embedded {done}/{len(ids)}", end="\r", flush=True)
     print()
     return 0
 
@@ -96,3 +96,7 @@ def main() -> None:
         code = {"create": lambda: token_create(args.name), "list": token_list,
                 "revoke": lambda: token_revoke(args.name)}[args.sub]()
         raise SystemExit(code)
+
+
+if __name__ == "__main__":
+    main()
