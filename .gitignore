@@ -12,3 +12,8 @@ build/
 .vscode/
 .gradle/
 local.properties
+
+# Kotlin / Gradle
+.kotlin/
+**/build/
+!server/src/**/build/
