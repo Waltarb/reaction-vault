@@ -54,6 +54,10 @@ docker compose exec vault vault reembed              # backfill embeddings
 
 Clients send `Authorization: Bearer <token>`. The web UI asks for the token once and keeps an HttpOnly cookie.
 
+## Quick start on one machine
+
+On Linux with Docker, `./install-server.sh` builds and starts the server on `http://localhost:8420` and prints a device token. Desktop installers (Windows MSI, Linux DEB/AppImage) come from the Installers workflow; see `clients/README.md`.
+
 ## Deploy
 
 The container runs as uid 1000, so the host `data/` directory must be writable by it: `mkdir -p data && chown 1000:1000 data` (a normal first user already is uid 1000).

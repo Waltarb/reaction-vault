@@ -22,6 +22,15 @@ The Android modules are only included when an Android SDK is found (`ANDROID_HOM
 ./gradlew :androidApp:assembleDebug
 ```
 
+## Installers
+
+The **Installers** workflow (Actions tab, Run workflow) builds a per-user Windows `.msi` (no admin prompt,
+Start-menu shortcut), a Linux `.deb` and a Linux `AppImage` (download, `chmod +x`, run). Pushing a tag
+such as `v0.1.0` also attaches them to a draft GitHub release. Locally:
+`./gradlew :desktopApp:packageMsi` on Windows, `:desktopApp:packageDeb :desktopApp:packageAppImage` on Linux.
+The installers bundle their own Java runtime, so nothing else needs installing. They are not code-signed,
+so Windows SmartScreen will warn on first run.
+
 ## Connecting
 
 Create a device token on the server (`vault token create phone`), then enter the server address and token on first launch. The Android build refuses plain HTTP; put the server behind HTTPS (see `deploy/Caddyfile.snippet`).
