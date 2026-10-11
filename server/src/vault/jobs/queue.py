@@ -13,6 +13,14 @@ POLL_SECONDS = 1.0
 Handler = Callable[[sqlite3.Connection, sqlite3.Row], None]
 
 
+class Deferred(Exception):
+    """Raised by a handler that cannot run yet (a model still loading). The job waits, attempts uncounted."""
+
+    def __init__(self, seconds: int = 60):
+        super().__init__(f"deferred {seconds}s")
+        self.seconds = seconds
+
+
 def _iso(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
@@ -62,6 +70,12 @@ def run_pending(db: sqlite3.Connection, handlers: dict[str, Handler], limit: int
                 raise RuntimeError(f"no handler for job type {job['type']}")
             handler(db, job)
             finish(db, job, None)
+        except Deferred as d:
+            wake = _iso(datetime.now(UTC) + timedelta(seconds=d.seconds))
+            db.execute(
+                "UPDATE jobs SET status = 'queued', attempts = attempts - 1, run_after = ? WHERE id = ?",
+                (wake, job["id"]),
+            )
         except Exception as e:
             log.exception("job %s (%s) failed", job["id"], job["type"])
             finish(db, job, f"{type(e).__name__}: {e}")

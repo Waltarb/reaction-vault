@@ -25,8 +25,8 @@ def test_commit_queues_renditions_only_for_animated(client):
     db = connect(get_settings().db_path)
     rows = db.execute("SELECT type, item_id FROM jobs WHERE status = 'queued' ORDER BY id").fetchall()
     assert [r["item_id"] for r in rows if r["type"] == "renditions"] == [2]  # the gif, not the png
-    # No embedding model is loaded, so both items also wait for the backfill.
-    assert sorted(r["item_id"] for r in rows if r["type"] == "embed") == [1, 2]
+    # Embeddings are switched off in tests, so nothing waits for a model that will never load.
+    assert [r for r in rows if r["type"] == "embed"] == []
     db.close()
 
 
@@ -87,3 +87,19 @@ def test_send_reports_503_when_ffmpeg_is_missing(client, monkeypatch):
     monkeypatch.setattr("vault.media.convert.shutil.which", lambda _name: None)
     item = add(client, webp_anim_bytes(), "b.webp")
     assert client.get(f"/media/{item['id']}/send/mp4").status_code == 503
+
+
+def test_deferred_job_waits_without_using_an_attempt():
+    from vault.db.migrate import migrate
+
+    db = connect(":memory:")
+    migrate(db)
+    queue.enqueue(db, "later", None)
+
+    def later(db, job):
+        raise queue.Deferred(60)
+
+    assert queue.run_pending(db, {"later": later}) == 1
+    row = db.execute("SELECT status, attempts FROM jobs").fetchone()
+    assert (row["status"], row["attempts"]) == ("queued", 0)
+    assert queue.claim(db) is None  # not due yet

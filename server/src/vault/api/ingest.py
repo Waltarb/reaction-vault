@@ -22,6 +22,7 @@ from vault.media.probe import UnsupportedMedia, hamming, probe
 from vault.media.store import derived_path, put_blob
 from vault.ml import autotag
 from vault.ml.registry import get_embedder
+from vault.ml.registry import status as registry_status
 from vault.ml.service import autotag_params, embed_file
 from vault.search import index
 
@@ -180,8 +181,8 @@ def commit_staged(db, settings: Settings, stage_id: str, body: CommitBody,
         db.execute("DELETE FROM staged WHERE id = ?", (stage_id,))
         if meta["kind"] != "image":
             enqueue(db, "renditions", item_id)
-        if vec is None:
-            enqueue(db, "embed", item_id)  # no model yet: the worker fills it in later
+        if vec is None and registry_status()["state"] in ("idle", "loading", "failed"):
+            enqueue(db, "embed", item_id)  # model not ready yet: the worker fills it in later
     return {"item": library.get_item(db, item_id), "duplicate": None}
 
 

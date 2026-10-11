@@ -4,7 +4,7 @@ import threading
 
 from vault.config import Settings, get_settings
 from vault.db.util import bump_rev, tx
-from vault.jobs.queue import enqueue
+from vault.jobs.queue import Deferred, enqueue
 from vault.media import convert
 from vault.media.probe import probe
 from vault.media.store import blob_path, derived_path
@@ -73,7 +73,7 @@ def renditions(db: sqlite3.Connection, job: sqlite3.Row) -> None:
 def embed(db: sqlite3.Connection, job: sqlite3.Row) -> None:
     emb = registry.get_embedder()
     if emb is None:
-        raise RuntimeError("embedding model is not ready")
+        raise Deferred(60)  # model still loading (or switched off); try again later
     item = db.execute(
         "SELECT * FROM items WHERE id = ? AND deleted_at IS NULL", (job["item_id"],)
     ).fetchone()

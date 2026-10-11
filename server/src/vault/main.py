@@ -1,6 +1,10 @@
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from vault import __version__
@@ -66,6 +70,13 @@ def create_app() -> FastAPI:
     protected.include_router(discover.router)
     protected.include_router(media.router)
     app.include_router(protected)
+
+    static_dir = Path(__file__).parent / "web" / "static"
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    @app.get("/", include_in_schema=False)
+    def index() -> FileResponse:
+        return FileResponse(static_dir / "index.html")
 
     return app
 

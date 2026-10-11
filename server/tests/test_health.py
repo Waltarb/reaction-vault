@@ -11,3 +11,11 @@ def test_sqlite_vec_is_loaded():
 
     db = connect(get_settings().db_path) if get_settings().db_path.exists() else connect(":memory:")
     assert db.execute("SELECT vec_version()").fetchone()[0]
+
+
+def test_web_ui_is_served_without_auth(make_client):
+    c = make_client(auth_disabled=False)
+    page = c.get("/")
+    assert page.status_code == 200 and "Reaction Vault" in page.text
+    assert c.get("/static/app.js").status_code == 200
+    assert c.get("/static/app.css").status_code == 200
