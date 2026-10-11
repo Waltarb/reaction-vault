@@ -154,3 +154,35 @@ def test_rerank_by_picked_items(client, fake_source, embedder):
     assert r["reranked"] is True
     assert [i["source_id"] for i in r["items"]] == ["BBB", "AAA"]
     assert r["items"][0]["similarity"] > r["items"][1]["similarity"]
+
+
+def test_giphy_parse_and_registry(monkeypatch):
+    from vault.config import get_settings
+    from vault.plugins.giphy.plugin import Giphy, parse_gif
+
+    raw = {
+        "id": "xT9IgzoKnwFNmISR8I", "title": "Smug Frog GIF by Someone", "url": "https://giphy.com/gifs/x",
+        "username": "someone",
+        "images": {
+            "original": {"url": "https://media.giphy.com/media/x/giphy.gif", "width": "480", "height": "270", "size": "1024"},
+            "fixed_width_small": {"url": "https://media.giphy.com/media/x/100w.gif"},
+        },
+    }
+    c = parse_gif(raw)
+    assert c.mime == "image/gif" and c.width == 480 and c.animated
+    assert c.preview_url.endswith("100w.gif") and c.file_url.endswith("giphy.gif")
+    assert parse_gif({"id": "a", "images": {}}) is None
+
+    g = Giphy("k", client=object())
+    assert g.resolve("../x") is None
+    assert g.search("a", animated=False, page=1, limit=5).items == []
+
+    registry.reset()
+    monkeypatch.setenv("VAULT_GIPHY_API_KEY", "abc")
+    get_settings.cache_clear()
+    assert "giphy" in registry.sources()
+    registry.reset()
+    monkeypatch.delenv("VAULT_GIPHY_API_KEY")
+    get_settings.cache_clear()
+    assert "giphy" not in registry.sources()
+    registry.reset()

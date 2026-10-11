@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     near_dup_phash: int = 6
     auth_disabled: bool = False
     worker_enabled: bool = True
+    giphy_api_key: str = ""  # empty: the Giphy source is not offered
+    giphy_rating: str = "pg-13"
 
     @property
     def db_path(self) -> Path:
