@@ -80,6 +80,37 @@ def reembed(all_items: bool) -> int:
     return 0
 
 
+def import_cmd(folder: str, recursive: bool, collection: str | None, tags: list[str]) -> int:
+    from pathlib import Path
+
+    from vault.maintenance import import_folder
+
+    root = Path(folder)
+    if not root.is_dir():
+        print(f"not a folder: {folder}", file=sys.stderr)
+        return 1
+    settings = get_settings()
+    report = import_folder(
+        _db(), settings, root, recursive=recursive, collection=collection, tags=tags,
+        progress=lambda n, total, p: print(f"[{n}/{total}] {p.name[:50]:<50}", end="", flush=True),
+    )
+    print(f"
+added {report.added}, already present {report.duplicates}, skipped {len(report.skipped)}")
+    for path, why in report.skipped[:20]:
+        print(f"  skipped {path}: {why}", file=sys.stderr)
+    return 0
+
+
+def gc_cmd(days: int | None, dry_run: bool) -> int:
+    from vault.maintenance import gc
+
+    r = gc(_db(), get_settings(), purge_deleted_days=days, dry_run=dry_run)
+    verb = "would free" if dry_run else "freed"
+    print(f"purged items {r.purged_items}, orphan blobs {r.orphan_blobs}, orphan derived {r.orphan_derived}, "
+          f"stale staging {r.stale_staging}, old jobs {r.old_jobs}; {verb} {r.bytes_freed / 1048576:.1f} MB")
+    return 0
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="vault")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -89,7 +120,21 @@ def main() -> None:
     tok.add_parser("revoke").add_argument("name")
     re = sub.add_parser("reembed", help="compute embeddings for items that lack one")
     re.add_argument("--all", action="store_true", help="recompute every item")
+    imp = sub.add_parser("import", help="add every image/video in a folder")
+    imp.add_argument("folder")
+    imp.add_argument("--no-recursive", dest="recursive", action="store_false")
+    imp.add_argument("--collection", help="put imported items in this collection (created if missing)")
+    imp.add_argument("--tag", action="append", default=[], dest="tags")
+    gcp = sub.add_parser("gc", help="remove orphaned files and long-deleted items")
+    gcp.add_argument("--purge-deleted-days", type=int, default=30, dest="days",
+                     help="hard-delete items deleted this many days ago (default 30)")
+    gcp.add_argument("--keep-deleted", action="store_const", const=None, dest="days")
+    gcp.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
+    if args.cmd == "import":
+        raise SystemExit(import_cmd(args.folder, args.recursive, args.collection, args.tags))
+    if args.cmd == "gc":
+        raise SystemExit(gc_cmd(args.days, args.dry_run))
     if args.cmd == "reembed":
         raise SystemExit(reembed(args.all))
     if args.cmd == "token":
