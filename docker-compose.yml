@@ -1,0 +1,10 @@
+# Local development: http://localhost:8420, auth off, bound to loopback only.
+services:
+  vault:
+    build: ./server
+    ports:
+      - "127.0.0.1:8420:8420"
+    environment:
+      VAULT_AUTH_DISABLED: "true"
+    volumes:
+      - ./data:/data

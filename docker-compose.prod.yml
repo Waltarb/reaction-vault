@@ -1,0 +1,17 @@
+# Production: no published port; the reverse proxy reaches vault:8420 over its own network.
+services:
+  vault:
+    build: ./server
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/data
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${CADDY_NETWORK:-waltadj_default}

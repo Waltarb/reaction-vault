@@ -1,0 +1,9 @@
+# Add to the Caddyfile of the proxy that owns ports 80/443, then reload Caddy.
+# Replace the hostname with your own subdomain.
+vault.example.com {
+	encode zstd gzip
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy vault:8420
+}
