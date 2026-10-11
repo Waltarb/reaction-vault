@@ -56,6 +56,8 @@ Clients send `Authorization: Bearer <token>`. The web UI asks for the token once
 
 ## Deploy
 
+The container runs as uid 1000, so the host `data/` directory must be writable by it: `mkdir -p data && chown 1000:1000 data` (a normal first user already is uid 1000).
+
 `docker-compose.prod.yml` publishes no port and joins your reverse proxy's Docker network (`CADDY_NETWORK` in `.env`). Add the route from `deploy/Caddyfile.snippet`, then:
 
 ```bash
@@ -72,7 +74,7 @@ Environment variables, all optional (see `.env.example`):
 | `VAULT_EMBED_MODEL` | `clip-b32` | `none` turns embeddings off |
 | `VAULT_EMBED_PRECISION` | `fp32` | `int8` is smaller and faster, slightly less accurate |
 | `VAULT_MAX_UPLOAD_BYTES` | 52428800 | Per file |
-| `VAULT_NEAR_DUP_COSINE` | 0.94 | Embedding similarity that counts as "looks like one you have" |
+| `VAULT_NEAR_DUP_COSINE` | 0.96 | Embedding similarity that counts as "looks like one you have" |
 | `VAULT_NEAR_DUP_PHASH` | 6 | Perceptual-hash distance that does |
 | `VAULT_AUTOTAG_TOP_K` / `VAULT_AUTOTAG_MIN_PROB` | 5 / 0.02 | Auto tag suggestions |
 | `VAULT_AUTH_DISABLED` | `false` | Development only |

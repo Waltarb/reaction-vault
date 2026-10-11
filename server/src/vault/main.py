@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ from vault.api import discover, ingest, items, media, search, sync
 from vault.jobs import tasks
 from vault.jobs.queue import Worker
 from vault.ml import registry
-from vault.api.deps import COOKIE, get_db, hash_token, require_auth
+from vault.api.deps import COOKIE, client_key, failures, get_db, hash_token, require_auth
 from vault.config import get_settings
 from vault.db.connection import connect
 from vault.db.migrate import migrate
@@ -56,11 +56,33 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/api/session", status_code=204)
-    def session(body: SessionBody, response: Response, db=Depends(get_db)):
+    def session(body: SessionBody, request: Request, response: Response, db=Depends(get_db)):
         """Trade a device token for an HttpOnly cookie so <img> and <video> requests are authorised."""
+        key = client_key(request)
+        if failures.blocked(key):
+            raise HTTPException(429, "too many failed attempts, try again in a minute")
         if not db.execute("SELECT 1 FROM devices WHERE token_hash = ?", (hash_token(body.token),)).fetchone():
+            failures.fail(key)
             raise HTTPException(401, "invalid token")
-        response.set_cookie(COOKIE, body.token, httponly=True, samesite="strict", max_age=60 * 60 * 24 * 365)
+        response.set_cookie(
+            COOKIE, body.token, httponly=True, samesite="strict",
+            secure=request.url.scheme == "https",  # behind the TLS proxy, --proxy-headers makes this https
+            max_age=60 * 60 * 24 * 365,
+        )
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        if not request.url.path.startswith("/media/"):
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
+                "style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+            )
+        return response
 
     protected = APIRouter(dependencies=[Depends(require_auth)])
     protected.include_router(ingest.router)

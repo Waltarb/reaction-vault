@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     autotag_top_k: int = 5
     autotag_min_prob: float = 0.02
     max_upload_bytes: int = 50 * 1024 * 1024
-    near_dup_cosine: float = 0.94
+    near_dup_cosine: float = 0.96  # int8 CLIP scores similar-style emotes ~0.94, so 0.94 over-flags
     near_dup_phash: int = 6
     auth_disabled: bool = False
     worker_enabled: bool = True
