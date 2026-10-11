@@ -105,3 +105,6 @@ dialog.sheet::backdrop { background: rgba(0,0,0,.65); }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   #add-url { display: none; }
 }
+
+.server-view { display: grid; gap: 4px; max-width: 640px; padding: 8px 0 24px; }
+.server-view .kv { display: flex; justify-content: space-between; gap: 16px; padding: 10px 14px; background: var(--surface, #17181a); border-radius: 10px; }

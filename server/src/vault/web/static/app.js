@@ -39,12 +39,12 @@ function qs(params) {
   return s ? "?" + s : "";
 }
 
-function toast(msg) {
+function toast(msg, sticky) {
   const t = $("toast");
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.remove("show"), 2600);
+  toast.timer = setTimeout(() => t.classList.remove("show"), sticky ? 6000 : 2600);
 }
 
 const fmtBytes = (n) => n == null ? "" : n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB";
@@ -61,7 +61,7 @@ const FILTERS = [
 ];
 
 const state = {
-  view: "vault", // vault | discover
+  view: "vault", // vault | discover | server
   filter: "all",
   collection: null,
   q: "",
@@ -117,6 +117,7 @@ async function refreshSide() {
     navItem("Favorites", info.favorites, state.view === "vault" && state.filter === "fav", () => go("vault", "fav", null)),
     navItem("Unsorted", info.unsorted, state.view === "vault" && state.filter === "unsorted", () => go("vault", "unsorted", null)),
     navItem("Discover", null, state.view === "discover", () => go("discover")),
+    navItem("Server", null, state.view === "server", () => go("server")),
   );
   $("collections").replaceChildren(...collections.map((c) =>
     navItem(c.name, c.count, state.view === "vault" && state.collection === c.id, () => go("vault", "all", c.id), c.color || "#6e8b5a")));
@@ -169,6 +170,8 @@ function renderChips() {
 let loadSeq = 0;
 async function load(reset) {
   const seq = ++loadSeq;
+  document.querySelector(".server-view")?.remove();
+  if (state.view === "server") { await renderServer(); return; }
   if (reset) { state.items = []; state.cursor = null; state.page = 1; $("grid").replaceChildren(); }
   $("more").hidden = true; $("empty").hidden = true;
   try {
@@ -206,6 +209,24 @@ async function load(reset) {
     }
     renderGrid();
   } catch (e) { if (e.message !== "unauthorised") toast(e.message); }
+}
+
+async function renderServer() {
+  $("grid").replaceChildren(); $("more").hidden = true; $("empty").hidden = true;
+  $("chips").replaceChildren();
+  $("title").textContent = "Server"; $("count").textContent = "";
+  let info, health;
+  try { [info, health] = await Promise.all([api("/api/server"), api("/api/health")]); } catch (e) { toast(e.message); return; }
+  const emb = info.embeddings || {};
+  const jobs = Object.entries(info.jobs || {});
+  const row = (k, v) => h("div", { class: "kv" }, h("span", { class: "muted", text: k }), h("span", { text: String(v) }));
+  $("grid").before(h("div", { class: "server-view" },
+    row("Status", health.status), row("Version", health.version), row("Schema", health.schema), row("Change rev", info.rev),
+    row("Items", info.items.toLocaleString()), row("Stored", fmtBytes(info.bytes)), row("Disk free", fmtBytes(info.disk_free)),
+    row("Embedding model", `${emb.model || "none"} (${emb.state || "off"})${emb.error ? " · " + emb.error : ""}`),
+    row("Jobs", jobs.length ? jobs.map(([k, v]) => `${k}: ${v}`).join(" · ") : "idle"),
+    row("Discover sources", state.sources.map((s) => s.label).join(", ") || "none"),
+    h("p", { class: "muted", text: "Create or revoke device tokens on the server: vault token create|list|revoke." })));
 }
 
 function renderPicks() {
@@ -372,10 +393,30 @@ async function openDetail(id) {
 
 /* ---------- save sheet (stage, review, commit) ---------- */
 
+function uploadWithProgress(file) {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "pasted.png");
+    const xhr = new XMLHttpRequest();
+    const name = file.name || "pasted image";
+    xhr.open("POST", "/api/ingest");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) toast(`Uploading ${name} · ${Math.round((e.loaded / e.total) * 100)}%`, true);
+    };
+    xhr.onerror = () => reject(new Error("Upload failed"));
+    xhr.onload = () => {
+      let body = {};
+      try { body = JSON.parse(xhr.responseText); } catch { /* not json */ }
+      if (xhr.status === 401) { showLogin(); reject(new Error("unauthorised")); }
+      else if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new Error(body.detail || `${xhr.status} ${xhr.statusText}`));
+    };
+    xhr.send(fd);
+  });
+}
+
 async function stageFile(file) {
-  const fd = new FormData();
-  fd.append("file", file, file.name || "pasted.png");
-  return handleStage(await api("/api/ingest", { method: "POST", body: fd }));
+  return handleStage(await uploadWithProgress(file));
 }
 
 async function stageUrl(url) {

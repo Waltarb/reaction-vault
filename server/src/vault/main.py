@@ -79,8 +79,9 @@ def create_app() -> FastAPI:
         if not request.url.path.startswith("/media/"):
             response.headers.setdefault(
                 "Content-Security-Policy",
-                "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
-                "style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+                "default-src 'self'; img-src 'self' data: blob: https:; media-src 'self' blob:; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src https://fonts.gstatic.com; frame-ancestors 'none'",
             )
         return response
 
