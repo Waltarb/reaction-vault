@@ -9,7 +9,9 @@ services:
     volumes:
       - ./data:/data
     networks:
-      - proxy
+      proxy:
+        aliases:
+          - reaction-vault  # the name Caddy uses; "vault" is too generic to share a network
 
 networks:
   proxy:

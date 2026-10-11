@@ -26,8 +26,21 @@ The Android modules are only included when an Android SDK is found (`ANDROID_HOM
 
 Create a device token on the server (`vault token create phone`), then enter the server address and token on first launch. The Android build refuses plain HTTP; put the server behind HTTPS (see `deploy/Caddyfile.snippet`).
 
+## Quick search (desktop)
+
+`Ctrl+Alt+V` from anywhere (Windows and X11), the tray icon, or `Ctrl+K` inside the app opens a small
+always-on-top search box. Type, arrow left/right, `Enter` copies the file to the clipboard and closes it,
+`Esc` closes. Closing the main window hides it to the tray when the desktop has one; use the tray's Quit.
+On Wayland apps cannot listen for global keys, so use the tray icon or `Ctrl+K`.
+
+## Animated previews
+
+Hovering a tile and the detail panel play the item's preview. The desktop decodes animated WebP and GIF
+frames with Skia (`AnimatedImage` in `shared/src/jvmMain`); Android uses Coil's decoders.
+
 ## Known gaps
 
-- Animated previews: thumbnails and previews render as still frames (Coil on Compose Multiplatform has no animated GIF/WebP decoder yet). The MP4/GIF/original send formats are unaffected.
-- No global hotkey quick-search popup yet; search is in the main window.
-- The Android module has not been built in CI or on a device yet.
+- The quick-search popup and animated previews were compiled and unit-tested (frame decoding) but not
+  driven by hand on every platform; the Android app has only been built in CI, not run on a device.
+- The global hotkey cannot work on Wayland (see above).
+- Android refuses plain HTTP, and shared links must be `http(s)://` text.

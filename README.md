@@ -5,7 +5,7 @@ A self-hosted home for reaction images, GIFs and short webm/mp4 clips. Search by
 - **Server** (`server/`): FastAPI + SQLite with [sqlite-vec](https://github.com/asg017/sqlite-vec), content-addressed files on disk, ffmpeg for MP4/GIF, CLIP via ONNX for search and dedupe. Built to run on a ThinkPad X230.
 - **Web UI**: served by the server at `/`. Plain HTML and JS, no build step.
 - **Discovery**: pluggable sources, starting with 7TV.
-- **Clients** (`clients/`): Kotlin (Android, Windows, Linux). Not started.
+- **Clients** (`clients/`): Kotlin Compose Multiplatform for Windows, Linux and Android. See `clients/README.md`.
 
 ## What works
 
@@ -63,6 +63,8 @@ The container runs as uid 1000, so the host `data/` directory must be writable b
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 ```
+
+The full step-by-step, including the CPU check for older hardware, is in `deploy/RUNBOOK.md`.
 
 ## Configuration
 
