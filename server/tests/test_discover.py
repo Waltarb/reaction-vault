@@ -186,3 +186,34 @@ def test_giphy_parse_and_registry(monkeypatch):
     get_settings.cache_clear()
     assert "giphy" not in registry.sources()
     registry.reset()
+
+
+RAW_POST = {
+    "id": 7223930, "file_url": "https://safebooru.org/images/3923/abc.png",
+    "preview_url": "https://safebooru.org/thumbnails/3923/thumbnail_abc.jpg",
+    "width": 800, "height": 600, "tags": "smug 1girl jitome o&#039;clock", "owner": "someone", "rating": "general",
+}
+
+
+def test_booru_parse_post_and_host_pinning():
+    from vault.plugins.booru.plugin import parse_post
+
+    c = parse_post(RAW_POST)
+    assert c.source_id == "7223930" and c.mime == "image/png" and not c.animated
+    assert "o'clock" in c.extra["tags"] and c.title.startswith("smug")
+    assert parse_post(RAW_POST | {"file_url": "https://evil.example/x.png"}) is None
+    assert parse_post(RAW_POST | {"file_url": "https://safebooru.org/images/1/x.swf"}) is None
+    assert parse_post(RAW_POST | {"file_url": "http://safebooru.org/images/1/x.png"}) is None
+
+
+def test_booru_search_and_resolve(monkeypatch):
+    from vault.plugins.booru.plugin import Booru
+
+    seen = []
+    b = Booru(client=object())
+    monkeypatch.setattr(b, "_posts", lambda tags, limit, pid: seen.append((tags, limit, pid)) or [RAW_POST])
+    page = b.search("smug ; drop", animated=True, page=2, limit=1)
+    assert seen[-1] == ("smug drop animated", 1, 1)
+    assert page.has_more and len(page.items) == 1
+    assert b.resolve("12abc") is None
+    assert b.resolve("7223930").source_id == "7223930"

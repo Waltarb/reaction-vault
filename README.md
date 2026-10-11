@@ -17,10 +17,10 @@ A self-hosted home for reaction images, GIFs and short webm/mp4 clips. Search by
 | Search | FTS5 keyword plus CLIP embedding similarity, fused by rank; "more like this" |
 | Auto tags | Zero-shot against a seed vocabulary plus your own tags |
 | Sync | Change feed `GET /api/sync?since=<rev>` with tombstones, for offline clients |
-| Discover | 7TV search and save, re-rank results by look against items you pick |
+| Discover | 7TV, Giphy (`VAULT_GIPHY_API_KEY`) and Safebooru (`VAULT_BOORU_ENABLED=true`) search and save, re-rank results by look against items you pick |
 | Auth | Per-device bearer tokens, cookie session for the web UI |
 
-Not verified yet: ffmpeg conversions (the tests exist and skip where ffmpeg is missing) and the real CLIP model (tests use a stand-in embedder). Both need a run in the Docker image.
+Verified: CI runs the server tests (including ffmpeg conversions) and builds the clients; the Docker image builds and serves; animated WebP ingests; the real CLIP ViT-B/32 (int8) returns sensible search results and tags for 7TV emotes. fp32 and the X230's CPU speed are untested.
 
 ## Run it
 
@@ -77,6 +77,8 @@ Environment variables, all optional (see `.env.example`):
 | `VAULT_NEAR_DUP_COSINE` | 0.96 | Embedding similarity that counts as "looks like one you have" |
 | `VAULT_NEAR_DUP_PHASH` | 6 | Perceptual-hash distance that does |
 | `VAULT_AUTOTAG_TOP_K` / `VAULT_AUTOTAG_MIN_PROB` | 5 / 0.02 | Auto tag suggestions |
+| `VAULT_GIPHY_API_KEY` | empty | Turns the Giphy source on |
+| `VAULT_BOORU_ENABLED` | `false` | Turns the Safebooru source on |
 | `VAULT_AUTH_DISABLED` | `false` | Development only |
 
 ## API sketch

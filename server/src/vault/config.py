@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     worker_enabled: bool = True
     giphy_api_key: str = ""  # empty: the Giphy source is not offered
     giphy_rating: str = "pg-13"
+    booru_enabled: bool = False  # Safebooru discovery source, off unless asked for
 
     @property
     def db_path(self) -> Path:

@@ -1,5 +1,6 @@
 from vault.config import get_settings
 from vault.plugins.base import DiscoverySource
+from vault.plugins.booru.plugin import Booru
 from vault.plugins.giphy.plugin import Giphy
 from vault.plugins.seventv.plugin import SevenTV
 
@@ -13,6 +14,8 @@ def sources() -> dict[str, DiscoverySource]:
         found: list[DiscoverySource] = [SevenTV()]
         if settings.giphy_api_key:
             found.append(Giphy(settings.giphy_api_key, settings.giphy_rating))
+        if settings.booru_enabled:
+            found.append(Booru())
         _sources = {s.key: s for s in found}
     return _sources
 
