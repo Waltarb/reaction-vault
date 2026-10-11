@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
                 picker.launch(arrayOf("image/*", "video/mp4", "video/webm"))
             },
         )
-        setContent { VaultApp(platform) { OkHttp.create() } }
+        setContent { VaultApp(platform, engine = { OkHttp.create() }) }
         handle(intent)
     }
 
