@@ -69,7 +69,11 @@ import app.vault.api.DiscoverItem
 import app.vault.api.Item
 import app.vault.api.VaultApi
 import app.vault.sync.Library
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import coil3.ImageLoader
+import io.ktor.client.HttpClient
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.network.ktor3.KtorNetworkFetcherFactory
@@ -148,7 +152,7 @@ private fun MainScreen(platform: Platform, connection: Connection, engine: () ->
     val controller = remember(api) { Controller(api, library, scope, platform) }
     val context = LocalPlatformContext.current
     val loader = remember(api) {
-        ImageLoader.Builder(context).components { add(KtorNetworkFetcherFactory(api.http)) }.build()
+        ImageLoader.Builder(context).components { add(KtorNetworkFetcherFactory(api.http)) }.withAnimatedImages().build()
     }
     LaunchedEffect(controller) { controller.start() }
     LaunchedEffect(controller) { platform.incoming.collect { controller.stage(it) } }
@@ -308,7 +312,8 @@ private fun VaultContent(c: Controller, loader: ImageLoader, compactNav: Boolean
             ) {
                 items(c.results, key = { it.id }) { item ->
                     Tile(c.api.absolute(item.urls.thumb ?: item.urls.original), item.formatLabel, loader,
-                        selected = c.selected?.id == item.id) { c.select(item) }
+                        selected = c.selected?.id == item.id, http = c.api.http,
+                        animatedUrl = item.urls.preview?.let { c.api.absolute(it) }) { c.select(item) }
                 }
             }
         }
@@ -325,14 +330,21 @@ private fun CompactNav(c: Controller) {
 
 @Composable
 private fun Tile(url: String, badge: String, loader: ImageLoader, selected: Boolean, overlay: @Composable (() -> Unit)? = null,
-                 onClick: () -> Unit) {
+                 http: HttpClient, animatedUrl: String? = null, onClick: () -> Unit) {
+    val hover = remember { MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
     Box(
         Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(14.dp)).background(Palette.Surface)
             .then(if (selected) Modifier.background(Palette.Raised) else Modifier)
+            .hoverable(hover)
             .clickable(onClick = onClick),
     ) {
-        AsyncImage(url, contentDescription = null, imageLoader = loader, contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize())
+        if (hovered && animatedUrl != null) {
+            AnimatedImage(animatedUrl, loader, http, Modifier.fillMaxSize())
+        } else {
+            AsyncImage(url, contentDescription = null, imageLoader = loader, contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize())
+        }
         Text(
             badge, fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).clip(RoundedCornerShape(6.dp))
@@ -353,8 +365,8 @@ private fun DetailPanel(c: Controller, item: Item, loader: ImageLoader) {
     LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Bg)) {
-                AsyncImage(c.api.absolute(item.urls.preview ?: item.urls.thumb ?: item.urls.original), null,
-                    imageLoader = loader, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                AnimatedImage(c.api.absolute(item.urls.preview ?: item.urls.thumb ?: item.urls.original), loader,
+                    c.api.http, Modifier.fillMaxSize())
             }
         }
         item {
@@ -596,7 +608,8 @@ private fun DiscoverContent(c: Controller, loader: ImageLoader, compactNav: Bool
 private fun DiscoverTile(c: Controller, d: DiscoverItem, loader: ImageLoader) {
     val saved = d.savedItemId != null
     val busy = (d.source + ":" + d.sourceId) in c.saving
-    Tile(d.previewUrl, d.mime.substringAfter('/').uppercase(), loader, selected = false, overlay = {
+    Tile(d.previewUrl, d.mime.substringAfter('/').uppercase(), loader, selected = false, http = c.api.http,
+        animatedUrl = d.previewUrl.takeIf { d.animated }, overlay = {
         Box(Modifier.fillMaxSize()) {
             Text("${d.source.uppercase()} · ${d.title}", fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).widthIn(max = 100.dp)

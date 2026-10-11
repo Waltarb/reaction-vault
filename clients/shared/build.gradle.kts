@@ -30,12 +30,16 @@ kotlin {
             implementation(libs.ktor.client.mock)
             implementation(libs.coroutines.test)
         }
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs) // Skia natives for the frame decoder test
+        }
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)
         }
         if (withAndroid) {
             getByName("androidMain").dependencies {
                 implementation(libs.ktor.client.okhttp)
+                implementation(libs.coil.gif)
             }
         }
     }
