@@ -24,6 +24,19 @@ compose.desktop {
             packageName = "ReactionVault"
             packageVersion = "1.0.0"
             description = "Reaction Vault desktop client"
+            vendor = "Reaction Vault"
+            includeAllModules = true // ktor/okhttp and the tray need JDK modules the default runtime trims
+            windows {
+                menuGroup = "Reaction Vault"
+                shortcut = true
+                dirChooser = false // one click: no wizard questions
+                perUserInstall = true // no admin prompt
+                upgradeUuid = "6f4d3c2a-8a39-4a0e-9d2b-3f1d4f5a7c11"
+            }
+            linux {
+                shortcut = true
+                menuGroup = "Graphics"
+            }
         }
     }
 }

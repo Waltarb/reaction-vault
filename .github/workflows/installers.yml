@@ -1,0 +1,49 @@
+name: Installers
+
+# Builds the desktop installers. Run it by hand (Actions tab, "Run workflow") to get them as
+# build artifacts, or push a tag like v0.1.0 to also attach them to a GitHub release.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            task: packageMsi
+            glob: clients/desktopApp/build/compose/binaries/main/msi/*.msi
+          - os: ubuntu-latest
+            task: packageDeb packageAppImage
+            glob: |
+              clients/desktopApp/build/compose/binaries/main/deb/*.deb
+              clients/desktopApp/build/compose/binaries/main/app/*.AppImage
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: clients
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build installers
+        run: |
+          for t in ${{ matrix.task }}; do ./gradlew :desktopApp:$t --console=plain; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: ${{ matrix.glob }}
+          if-no-files-found: error
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.glob }}
+          draft: true

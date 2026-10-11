@@ -17,3 +17,4 @@ local.properties
 .kotlin/
 **/build/
 !server/src/**/build/
+docker-compose.local.yml
