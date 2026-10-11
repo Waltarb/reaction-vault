@@ -92,10 +92,9 @@ def import_cmd(folder: str, recursive: bool, collection: str | None, tags: list[
     settings = get_settings()
     report = import_folder(
         _db(), settings, root, recursive=recursive, collection=collection, tags=tags,
-        progress=lambda n, total, p: print(f"[{n}/{total}] {p.name[:50]:<50}", end="", flush=True),
+        progress=lambda n, total, p: print(f"\r[{n}/{total}] {p.name[:50]:<50}", end="", flush=True),
     )
-    print(f"
-added {report.added}, already present {report.duplicates}, skipped {len(report.skipped)}")
+    print(f"\nadded {report.added}, already present {report.duplicates}, skipped {len(report.skipped)}")
     for path, why in report.skipped[:20]:
         print(f"  skipped {path}: {why}", file=sys.stderr)
     return 0
