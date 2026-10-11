@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import re
@@ -6,6 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -17,6 +19,10 @@ from vault.db.util import tx
 from vault.media import fetch, thumbs
 from vault.media.probe import UnsupportedMedia, hamming, probe
 from vault.media.store import derived_path, put_blob
+from vault.ml import autotag
+from vault.ml.registry import get_embedder
+from vault.ml.service import autotag_params, embed_file
+from vault.search import index
 
 router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
@@ -26,7 +32,7 @@ NEAR_LIMIT = 5
 
 class CommitBody(BaseModel):
     title: str | None = None
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] | None = None  # None: accept the suggested auto tags as they are
     collection_ids: list[int] = Field(default_factory=list)
 
 
@@ -51,23 +57,36 @@ def _purge_expired(db: sqlite3.Connection, settings: Settings) -> None:
         db.execute("DELETE FROM staged WHERE expires_at < ?", (_iso(_now()),))
 
 
-def near_matches(db: sqlite3.Connection, phash: int | None, max_distance: int, exclude_sha: str) -> list[dict]:
-    if phash is None:
-        return []
-    found = []
-    for r in db.execute(
-        "SELECT id, phash FROM items WHERE deleted_at IS NULL AND phash IS NOT NULL AND sha256 != ?",
-        (exclude_sha,),
-    ):
-        d = hamming(phash, r["phash"])
-        if d <= max_distance:
-            found.append((d, r["id"]))
-    found.sort()
+def _vec_from_meta(meta: dict) -> np.ndarray | None:
+    raw = meta.get("embedding")
+    return np.frombuffer(base64.b64decode(raw), dtype=np.float32) if raw else None
+
+
+def near_matches(db: sqlite3.Connection, settings: Settings, meta: dict, exclude_sha: str) -> list[dict]:
+    """Items that look like the staged file: embedding cosine and/or perceptual-hash distance."""
+    found: dict[int, float] = {}
+    phash = meta.get("phash")
+    if phash is not None:
+        for r in db.execute(
+            "SELECT id, phash FROM items WHERE deleted_at IS NULL AND phash IS NOT NULL AND sha256 != ?",
+            (exclude_sha,),
+        ):
+            d = hamming(phash, r["phash"])
+            if d <= settings.near_dup_phash:
+                found[r["id"]] = 1 - d / 64
+    vec = _vec_from_meta(meta)
+    if vec is not None:
+        table = index.ensure_table(db, meta["model"], len(vec))
+        for item_id, sim in index.nearest(
+            db, table, vec, ["i.deleted_at IS NULL", "i.sha256 != ?"], [exclude_sha], NEAR_LIMIT
+        ):
+            if sim >= settings.near_dup_cosine:
+                found[item_id] = max(found.get(item_id, 0.0), sim)
     out = []
-    for d, item_id in found[:NEAR_LIMIT]:
+    for item_id, sim in sorted(found.items(), key=lambda kv: -kv[1])[:NEAR_LIMIT]:
         item = library.get_item(db, item_id)
         if item:
-            out.append({"item": item, "similarity": round(1 - d / 64, 3)})
+            out.append({"item": item, "similarity": round(sim, 3)})
     return out
 
 
@@ -92,6 +111,12 @@ def _stage(db, settings, path: Path, sha: str, *, name: str, source: str, source
         "source_url": source_url,
         "suggested_title": _clean_title(name),
     }
+    embedder = get_embedder()
+    vec = embed_file(path, info.kind, info.duration_ms, embedder)
+    if vec is not None:
+        meta["embedding"] = base64.b64encode(vec.tobytes()).decode()
+        meta["model"] = embedder.key
+        meta["auto_tags"] = autotag.suggest(embedder, settings.models_dir, db, vec, **autotag_params(settings))
     stage_id = uuid.uuid4().hex
     final = settings.staging_dir / f"{stage_id}.bin"
     path.replace(final)
@@ -130,11 +155,18 @@ def commit_staged(db, settings: Settings, stage_id: str, body: CommitBody) -> di
         raise HTTPException(422, f"could not process this file: {e}") from e
 
     title = (body.title if body.title is not None else meta.get("suggested_title") or "").strip()[:200]
+    suggested: dict[str, float] = meta.get("auto_tags") or {}
+    final_tags = library.norm_tags(list(suggested) if body.tags is None else body.tags)
+    auto = {t: suggested[t] for t in final_tags if t in suggested}
+    vec = _vec_from_meta(meta)
     with tx(db):
         item_id = library.create_item(
             db, meta, sha256=sha, size=meta["bytes"], title=title,
-            tags=body.tags, collection_ids=body.collection_ids,
+            tags=[t for t in final_tags if t not in auto], collection_ids=body.collection_ids,
+            auto_tags=auto,
         )
+        if vec is not None:
+            index.upsert(db, index.ensure_table(db, meta["model"], len(vec)), item_id, vec)
         for kind, path, w, h in renditions:
             db.execute(
                 "INSERT OR REPLACE INTO renditions (item_id, kind, bytes, width, height, status) "
@@ -201,12 +233,13 @@ def ingest(
         return {"staged_id": None, "duplicate": result["duplicate"], "item": result["item"],
                 "near": [], "auto_tags": []}
 
+    public = {k: v for k, v in meta.items() if k not in ("embedding", "auto_tags")}
     return {
         "staged_id": stage_id,
         "duplicate": None,
-        "meta": meta,
-        "near": near_matches(db, meta.get("phash"), settings.near_dup_phash, sha),
-        "auto_tags": [],
+        "meta": public,
+        "near": near_matches(db, settings, meta, sha),
+        "auto_tags": [{"name": n, "score": s} for n, s in (meta.get("auto_tags") or {}).items()],
         "file_url": f"/api/ingest/{stage_id}/file",
     }
 

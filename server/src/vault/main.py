@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response
 from pydantic import BaseModel
 
 from vault import __version__
-from vault.api import ingest, items, media
+from vault.api import ingest, items, media, search
+from vault.ml import registry
 from vault.api.deps import COOKIE, get_db, hash_token, require_auth
 from vault.config import get_settings
 from vault.db.connection import connect
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     db = connect(settings.db_path)
     migrate(db)
     db.close()
+    registry.warm(settings)
     yield
 
 
@@ -49,6 +51,7 @@ def create_app() -> FastAPI:
     protected = APIRouter(dependencies=[Depends(require_auth)])
     protected.include_router(ingest.router)
     protected.include_router(items.router)
+    protected.include_router(search.router)
     protected.include_router(media.router)
     app.include_router(protected)
 

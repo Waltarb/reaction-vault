@@ -1,0 +1,236 @@
+# One tag per line. Lines starting with # are ignored. These seed the zero-shot auto tagger;
+# tags you add yourself join this list automatically.
+# emotions
+happy
+sad
+angry
+furious
+smug
+smirking
+shocked
+surprised
+confused
+crying
+laughing
+sobbing
+embarrassed
+nervous
+bored
+tired
+sleepy
+excited
+proud
+disgusted
+annoyed
+worried
+scared
+terrified
+jealous
+awkward
+cringe
+deadpan
+sarcastic
+suspicious
+disappointed
+relieved
+satisfied
+cool
+confident
+determined
+hopeful
+lonely
+heartbroken
+in love
+blushing
+flustered
+panicked
+stressed
+dizzy
+drunk
+evil
+mischievous
+creepy
+judging
+unimpressed
+done
+tired of this
+speechless
+celebrating
+hyped
+cheering
+smiling
+grinning
+winking
+pouting
+sulking
+raging
+trembling
+sweating
+# gestures and actions
+thumbs up
+thumbs down
+facepalm
+shrug
+wave
+waving
+nodding
+head shake
+clapping
+applause
+salute
+pointing
+hug
+kiss
+dancing
+eye roll
+staring
+blinking
+looking away
+hiding
+running
+falling
+jumping
+sitting
+sleeping
+eating
+drinking
+typing
+reading
+cooking
+fighting
+punching
+slapping
+throwing
+catching
+walking away
+peeking
+thinking
+praying
+bowing
+fist bump
+high five
+handshake
+heart hands
+peace sign
+ok sign
+crossed arms
+hands up
+tipping hat
+# words and phrases
+yes
+no
+nope
+maybe
+wow
+oof
+bruh
+lol
+omg
+wtf
+rip
+gg
+pog
+sus
+based
+cope
+seethe
+huh
+what
+why
+how
+please
+thank you
+sorry
+welcome
+hello
+goodbye
+good morning
+good night
+congratulations
+happy birthday
+good luck
+well done
+nice
+cool story
+stonks
+not stonks
+let's go
+hold on
+wait
+stop
+go away
+come here
+my bad
+you got this
+don't care
+who asked
+skill issue
+big brain
+mind blown
+# subjects
+cat
+kitten
+dog
+puppy
+frog
+bird
+duck
+bear
+monkey
+horse
+rabbit
+fish
+anime girl
+anime boy
+anime
+cartoon
+cartoon character
+meme
+meme face
+pixel art
+emoji
+sticker
+text
+caption
+screenshot
+person
+man
+woman
+child
+baby
+face
+close up
+crowd
+celebrity
+robot
+ghost
+skull
+food
+pizza
+coffee
+money
+fire
+explosion
+heart
+star
+sparkles
+rain
+space
+game
+video game
+movie scene
+tv show
+sports
+music
+# style
+black and white
+neon
+glitch
+pixelated
+low quality
+high contrast
+drawing
+3d render
+photo
+comic
+manga
